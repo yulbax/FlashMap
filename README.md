@@ -170,6 +170,7 @@ The container automatically rehashes when the load factor exceeds 87.5%. During 
 ### Constructors
 ```cpp
 explicit FlashMap(std::size_t size = DEFAULT_SIZE);
+FlashMap(Iter begin, Iter end);
 FlashMap(const FlashMap& other);
 FlashMap& operator=(const FlashMap& other);
 ```
@@ -196,11 +197,11 @@ std::size_t size() const;                 // Container size
 
 ### Iterators
 ```cpp
-iterator begin();                         // Begin iterator
-const_iterator begin() const;            // Const begin iterator
-iterator end();                          // End iterator  
-const_iterator end() const;              // Const end iterator
-iterator find(const Key& key);           // Find element
+iterator begin();                          // Begin iterator
+const_iterator begin() const;              // Const begin iterator
+iterator end();                            // End iterator  
+const_iterator end() const;                // Const end iterator
+iterator find(const Key& key);             // Find element
 const_iterator find(const Key& key) const; // Const find
 ```
 

@@ -2,26 +2,33 @@
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
 template<typename VecRef, typename ValType>
-class FlatHashMap<Key, Value, Hash>::IteratorBase {
+class FlashMap<Key, Value, Hash>::IteratorBase {
     struct Proxy {
         const Key & first;
         ValType & second;
 
         Proxy * operator->() { return this; }
     };
-    using ListVecIter = std::list<typename VecRef::iterator>::iterator;
+    using ListVecIter = typename std::list<typename VecRef::iterator>::iterator;
 
 public:
-    IteratorBase(VecRef & data, ListVecIter pos, FlatHashMap & map) : m_Data(data), m_CurrentPosition(pos), m_Map(map) {}
 
-    IteratorBase(const IteratorBase & other) : m_Data(other.m_Data), m_Map(other.m_Map) {
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = KeyValue;
+    using difference_type = std::ptrdiff_t;
+    using pointer = Proxy*;
+    using reference = KeyValue&;
+
+
+    IteratorBase(ListVecIter pos, FlashMap & map) : m_CurrentPosition(pos), m_Map(map) {}
+
+    IteratorBase(const IteratorBase & other) : m_Map(other.m_Map) {
         m_Map.m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
         m_CurrentPosition = m_Map.m_ActiveIterators.begin();
     }
 
     IteratorBase & operator=(const IteratorBase & other) {
         if (this == &other) return *this;
-        m_Data = other.m_Data;
         m_Map = other.m_Map;
         m_Map.m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
         m_CurrentPosition = m_Map.m_ActiveIterators.begin();
@@ -68,14 +75,13 @@ public:
 private:
     void skipToOccupied() {
         auto newPos = *m_CurrentPosition;
-        if (newPos == m_Data.end()) return;
+        if (newPos == m_Map.m_Data.end()) return;
         do {
             ++newPos;
-        } while (newPos != m_Data.end() && newPos->status != Status::OCCUPIED);
+        } while (newPos != m_Map.m_Data.end() && newPos->status != Status::OCCUPIED);
         *m_CurrentPosition = newPos;
     }
 
-    VecRef & m_Data;
     ListVecIter m_CurrentPosition;
-    FlatHashMap & m_Map;
+    FlashMap & m_Map;
 };

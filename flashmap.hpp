@@ -1,28 +1,25 @@
 #pragma once
 #include <list>
 #include <vector>
+#include "flashmapconcepts.hpp"
 #include "flashmapimpl.hpp"
-
-template<typename Key, typename HashFunc>
-concept Hashable = requires(Key key, HashFunc hasher)
-{ { hasher(key) } -> std::convertible_to<std::size_t>; };
-
 
 template<typename Key,
          typename Value,
          typename Hash = std::hash<Key>>
          requires Hashable<Key, Hash>
 
-class FlatHashMap {
+class FlashMap {
 
     static constexpr std::size_t DEFAULT_SIZE = 1024;
     static constexpr float LOAD_FACTOR = 0.875;
 
-    using Status = FlatHashMapImpl::Status;
-    using KeyValue = FlatHashMapImpl::KeyValue<Key, Value>;
-    using Element = FlatHashMapImpl::Element<Key, Value>;
+    using Status = FlashMapImpl::Status;
+    using KeyValue = FlashMapImpl::KeyValue<Key, Value>;
+    using Element = FlashMapImpl::Element<Key, Value>;
     using Vec = std::vector<Element>;
-    using VecIterator = Vec::iterator;
+    using VecIterator = typename Vec::iterator;
+    using ListIterator = typename std::list<VecIterator>::iterator;
 
     template<typename VecType, typename ValType>
     class IteratorBase;
@@ -30,14 +27,18 @@ class FlatHashMap {
 public:
 
     using key_type = Key;
-    using value_type = Value;
+    using mapped_type = Value;
+    using value_type = std::pair<const Key, Value>;
     using iterator = IteratorBase<std::vector<Element>, Value>;
     using const_iterator = IteratorBase<std::vector<Element>, const Value>;
 
-    explicit FlatHashMap(std::size_t size = DEFAULT_SIZE);
+    explicit FlashMap(std::size_t size = DEFAULT_SIZE);
 
-    FlatHashMap(const FlatHashMap & other);
-    FlatHashMap & operator=(const FlatHashMap & other);
+    FlashMap(const FlashMap & other);
+    FlashMap & operator=(const FlashMap & other);
+
+    template<typename InputIt> requires InputPairs<InputIt, Key, Value>
+    FlashMap(InputIt first, InputIt last);
 
     template<typename K, typename V>
     bool insert(K && key, V && value);
@@ -72,11 +73,12 @@ private:
 
     [[nodiscard]] std::size_t nextCell(std::size_t index, std::size_t shift) const;
 
-    decltype(auto) findIndex(const Key & key);
+    auto findIndex(const Key & key);
+    [[nodiscard]] auto findIndex(const Key & key) const;
 
     auto getNextPosition(const Key & key);
 
-    void killIterator(std::list<typename Vec::iterator>::iterator iter) const;
+    void killIterator(ListIterator iter) const;
 
     void loadFactor() const;
 
