@@ -1,7 +1,7 @@
 #pragma once
 
 // NESTED OBJECTS
-namespace FlashMapImpl {
+namespace flashmapimpl {
     enum class Status { FREE, OCCUPIED, DELETED };
 
     template<typename Key, typename Value>
@@ -76,19 +76,3 @@ namespace FlashMapImpl {
     };
 }
 
-namespace std {
-    template<typename Key, typename Value>
-    struct tuple_size<FlashMapImpl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
-        static constexpr std::size_t value = 2;
-    };
-
-    template<std::size_t I, typename Key, typename Value>
-    struct tuple_element<I, FlashMapImpl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
-        using type = std::conditional_t<I == 0, const Key, Value>;
-    };
-
-    template<std::size_t I, typename Key, typename Value>
-    struct tuple_element<I, const FlashMapImpl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
-        using type = std::conditional_t<I == 0, const Key, const Value>;
-    };
-}

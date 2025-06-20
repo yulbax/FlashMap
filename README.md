@@ -26,7 +26,7 @@ A high-performance, template-based hash map implementation using open addressing
 #include "flashmap.hpp"
 
 // Create a hash map with default size (1024)
-FlashMap<int, std::string> map;
+yulbax::flashmap<int, std::string> map;
 
 // Insert key-value pairs
 map.insert(1, "hello");
@@ -62,7 +62,7 @@ map.clear();
 
 ```cpp
 // Custom size (will be scaled automatically to power of 2)
-FlashMap<std::string, int> customSizeMap(512);
+yulbax::flashmap<std::string, int> customSizeMap(512);
 
 // Custom hash function
 struct CustomHash {
@@ -71,13 +71,13 @@ struct CustomHash {
     }
 };
 
-FlashMap<std::string, int, CustomHash> customHashMap;
+yulbax::flashmap<std::string, int, CustomHash> customHashMap;
 ```
 
 ### Iteration with Stable Iterators
 
 ```cpp
-FlashMap<int, std::string> map;
+yulbax::flashmap<int, std::string> map;
 map[1] = "one";
 map[2] = "two";
 map[3] = "three";
@@ -169,10 +169,10 @@ The container automatically rehashes when the load factor exceeds 87.5%. During 
 
 ### Constructors
 ```cpp
-explicit FlashMap(std::size_t size = DEFAULT_SIZE);
-FlashMap(Iter begin, Iter end);
-FlashMap(const FlashMap& other);
-FlashMap& operator=(const FlashMap& other);
+explicit flashmap(std::size_t size = DEFAULT_SIZE);
+flashmap(const FlashMap& other);
+flashmap(Iter begin, Iter end);
+flashmap& operator=(const FlashMap& other);
 ```
 
 ### Modification

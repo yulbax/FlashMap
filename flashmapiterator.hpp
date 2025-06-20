@@ -2,7 +2,7 @@
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
 template<typename VecRef, typename ValType>
-class FlashMap<Key, Value, Hash>::IteratorBase {
+class flashmap<Key, Value, Hash>::IteratorBase {
     struct Proxy {
         const Key & first;
         ValType & second;
@@ -20,7 +20,7 @@ public:
     using reference = KeyValue&;
 
 
-    IteratorBase(ListVecIter pos, FlashMap & map) : m_CurrentPosition(pos), m_Map(map) {}
+    IteratorBase(ListVecIter pos, flashmap & map) : m_CurrentPosition(pos), m_Map(map) {}
 
     IteratorBase(const IteratorBase & other) : m_Map(other.m_Map) {
         m_Map.m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
@@ -45,34 +45,46 @@ public:
     }
 
     auto & operator*() {
-        auto it = *(m_CurrentPosition);
+        isAlive();
+        auto it = *m_CurrentPosition;
         return it->kv;
     }
 
     const auto & operator*() const {
+        isAlive();
         auto it = *m_CurrentPosition;
         return it->kv;
     }
 
     auto operator->() {
+        isAlive();
         auto it = *m_CurrentPosition;
         return Proxy{it->kv.key, it->kv.value};
     }
 
     auto operator->() const {
+        isAlive();
         auto it = *m_CurrentPosition;
         return Proxy{it->kv.key, it->kv.value};
     }
 
     bool operator==(const IteratorBase & other) const {
+        if (*m_CurrentPosition != m_Map.m_Data.end()) isAlive();
         return *m_CurrentPosition == *other.m_CurrentPosition;
     }
 
     bool operator!=(const IteratorBase & other) const {
+        if (*m_CurrentPosition != m_Map.m_Data.end()) isAlive();
         return *m_CurrentPosition != *other.m_CurrentPosition;
     }
 
 private:
+    void isAlive() const {
+        if ((*m_CurrentPosition)->status == Status::DELETED) {
+            throw std::out_of_range("Attempted to access a deleted value");
+        }
+    }
+
     void skipToOccupied() {
         auto newPos = *m_CurrentPosition;
         if (newPos == m_Map.m_Data.end()) return;
@@ -83,5 +95,5 @@ private:
     }
 
     ListVecIter m_CurrentPosition;
-    FlashMap & m_Map;
+    flashmap & m_Map;
 };

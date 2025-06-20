@@ -1,27 +1,26 @@
 #pragma once
-#include "flashmap.hpp"
 
 // PUBLIC METHODS
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-FlashMap<Key, Value, Hash>::FlashMap(std::size_t size)
+flashmap<Key, Value, Hash>::flashmap(std::size_t size)
     : m_Data(std::bit_ceil(size)), m_Hasher(), m_Count(0), m_MaxLoad(), m_ActiveIterators() {
     loadFactor();
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
 template<typename InputIt> requires InputPairs<InputIt, Key, Value>
-FlashMap<Key, Value, Hash>::FlashMap(InputIt first, InputIt last) : FlashMap() {
+flashmap<Key, Value, Hash>::flashmap(InputIt first, InputIt last) : flashmap() {
     for (; first != last; ++first)
         insert(first->first, first->second);
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-FlashMap<Key, Value, Hash>::FlashMap(const FlashMap & other) : m_Data(other.m_Data), m_Hasher(other.m_Hasher),
-                                                                        m_Count(other.m_Count), m_MaxLoad(other.m_MaxLoad),
-                                                                        m_ActiveIterators() {}
+flashmap<Key, Value, Hash>::flashmap(const flashmap & other) : m_Data(other.m_Data), m_Hasher(other.m_Hasher),
+                                                               m_Count(other.m_Count), m_MaxLoad(other.m_MaxLoad),
+                                                               m_ActiveIterators() {}
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-FlashMap<Key, Value, Hash> & FlashMap<Key, Value, Hash>::operator=(const FlashMap & other) {
+flashmap<Key, Value, Hash> & flashmap<Key, Value, Hash>::operator=(const flashmap & other) {
     if (this == &other) return *this;
     m_Data = other.m_Data;
     m_Hasher = other.m_Hasher;
@@ -33,7 +32,7 @@ FlashMap<Key, Value, Hash> & FlashMap<Key, Value, Hash>::operator=(const FlashMa
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
 template<typename K, typename V>
-bool FlashMap<Key, Value, Hash>::insert(K && key, V && value) {
+bool flashmap<Key, Value, Hash>::insert(K && key, V && value) {
     if (m_Count > m_MaxLoad) {
         rehash();
     }
@@ -52,7 +51,7 @@ bool FlashMap<Key, Value, Hash>::insert(K && key, V && value) {
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
 template<typename K>
-Value & FlashMap<Key, Value, Hash>::operator[](K && key) {
+Value & flashmap<Key, Value, Hash>::operator[](K && key) {
     if (m_Count > m_MaxLoad) {
         rehash();
     }
@@ -68,7 +67,7 @@ Value & FlashMap<Key, Value, Hash>::operator[](K && key) {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-Value & FlashMap<Key, Value, Hash>::at(const Key & key) {
+Value & flashmap<Key, Value, Hash>::at(const Key & key) {
     auto it = findIndex(key);
     if (it == m_Data.end()) {
         throw std::out_of_range("Key not found");
@@ -77,7 +76,7 @@ Value & FlashMap<Key, Value, Hash>::at(const Key & key) {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-const Value & FlashMap<Key, Value, Hash>::at(const Key & key) const {
+const Value & flashmap<Key, Value, Hash>::at(const Key & key) const {
     auto it = findIndex(key);
     if (it == m_Data.end()) {
         throw std::out_of_range("Key not found");
@@ -86,18 +85,18 @@ const Value & FlashMap<Key, Value, Hash>::at(const Key & key) const {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-bool FlashMap<Key, Value, Hash>::contains(const Key & key) const {
+bool flashmap<Key, Value, Hash>::contains(const Key & key) const {
     return findIndex(key) != m_Data.end();
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-std::size_t FlashMap<Key, Value, Hash>::size() const {
+std::size_t flashmap<Key, Value, Hash>::size() const {
     return m_Count;
 }
 
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-bool FlashMap<Key, Value, Hash>::erase(const Key & key) {
+bool flashmap<Key, Value, Hash>::erase(const Key & key) {
     auto it = findIndex(key);
     if (it != m_Data.end()) {
         it->status = Status::DELETED;
@@ -108,7 +107,7 @@ bool FlashMap<Key, Value, Hash>::erase(const Key & key) {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-void FlashMap<Key, Value, Hash>::clear() {
+void flashmap<Key, Value, Hash>::clear() {
     for (auto & cell : m_Data) {
         cell.status = Status::FREE;
     }
@@ -117,8 +116,8 @@ void FlashMap<Key, Value, Hash>::clear() {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-typename FlashMap<Key, Value, Hash>::iterator
-FlashMap<Key, Value, Hash>::begin() {
+typename flashmap<Key, Value, Hash>::iterator
+flashmap<Key, Value, Hash>::begin() {
     if (!m_Count) return end();
 
     std::size_t index = 0;
@@ -134,8 +133,8 @@ FlashMap<Key, Value, Hash>::begin() {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-typename FlashMap<Key, Value, Hash>::const_iterator
-FlashMap<Key, Value, Hash>::begin() const {
+typename flashmap<Key, Value, Hash>::const_iterator
+flashmap<Key, Value, Hash>::begin() const {
     if (!m_Count) return end();
 
     std::size_t index = 0;
@@ -151,8 +150,8 @@ FlashMap<Key, Value, Hash>::begin() const {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-typename FlashMap<Key, Value, Hash>::iterator
-FlashMap<Key, Value, Hash>::end() {
+typename flashmap<Key, Value, Hash>::iterator
+flashmap<Key, Value, Hash>::end() {
     m_ActiveIterators.emplace_front(m_Data.end());
     auto listIt = m_ActiveIterators.begin();
 
@@ -160,16 +159,16 @@ FlashMap<Key, Value, Hash>::end() {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-typename FlashMap<Key, Value, Hash>::const_iterator
-FlashMap<Key, Value, Hash>::end() const {
+typename flashmap<Key, Value, Hash>::const_iterator
+flashmap<Key, Value, Hash>::end() const {
     m_ActiveIterators.emplace_front(m_Data.end());
     auto listIt = m_ActiveIterators.begin();
     return const_iterator(listIt, *this);
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-typename FlashMap<Key, Value, Hash>::iterator
-FlashMap<Key, Value, Hash>::find(const Key & key) {
+typename flashmap<Key, Value, Hash>::iterator
+flashmap<Key, Value, Hash>::find(const Key & key) {
     auto it = findIndex(key);
     if (it == m_Data.end()) {
         return end();
@@ -180,8 +179,8 @@ FlashMap<Key, Value, Hash>::find(const Key & key) {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-typename FlashMap<Key, Value, Hash>::const_iterator
-FlashMap<Key, Value, Hash>::find(const Key & key) const {
+typename flashmap<Key, Value, Hash>::const_iterator
+flashmap<Key, Value, Hash>::find(const Key & key) const {
     auto it = findIndex(key);
     if (it == m_Data.end()) {
         return end();
@@ -195,12 +194,12 @@ FlashMap<Key, Value, Hash>::find(const Key & key) const {
 
 // PRIVATE METHODS
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-std::size_t FlashMap<Key, Value, Hash>::hash(const Key & key) const {
+std::size_t flashmap<Key, Value, Hash>::hash(const Key & key) const {
     return m_Hasher(key);
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-void FlashMap<Key, Value, Hash>::rehash() {
+void flashmap<Key, Value, Hash>::rehash() {
     std::vector<Element> oldData = std::move(m_Data);
     m_Data.resize(oldData.size() * 2);
     loadFactor();
@@ -223,12 +222,12 @@ void FlashMap<Key, Value, Hash>::rehash() {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-std::size_t FlashMap<Key, Value, Hash>::nextCell(const std::size_t index, const std::size_t shift) const {
+std::size_t flashmap<Key, Value, Hash>::nextCell(const std::size_t index, const std::size_t shift) const {
     return (index + shift * shift) & (m_Data.size() - 1);
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-auto FlashMap<Key, Value, Hash>::findIndex(const Key & key) {
+auto flashmap<Key, Value, Hash>::findIndex(const Key & key) {
     const std::size_t index = hash(key);
     auto current = m_Data.begin();
 
@@ -247,7 +246,7 @@ auto FlashMap<Key, Value, Hash>::findIndex(const Key & key) {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-auto FlashMap<Key, Value, Hash>::findIndex(const Key & key) const {
+auto flashmap<Key, Value, Hash>::findIndex(const Key & key) const {
     const std::size_t index = hash(key);
     auto current = m_Data.begin();
 
@@ -266,7 +265,7 @@ auto FlashMap<Key, Value, Hash>::findIndex(const Key & key) const {
 
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-auto FlashMap<Key, Value, Hash>::getNextPosition(const Key & key) {
+auto flashmap<Key, Value, Hash>::getNextPosition(const Key & key) {
     const std::size_t index = hash(key);
     auto firstDeleted = m_Data.end();
 
@@ -287,12 +286,12 @@ auto FlashMap<Key, Value, Hash>::getNextPosition(const Key & key) {
 }
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-void FlashMap<Key, Value, Hash>::killIterator(ListIterator iter) const {
+void flashmap<Key, Value, Hash>::killIterator(ListIterator iter) const {
     m_ActiveIterators.erase(iter);
 }
 
 
 template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
-void FlashMap<Key, Value, Hash>::loadFactor() const {
+void flashmap<Key, Value, Hash>::loadFactor() {
     m_MaxLoad = static_cast<std::size_t>(static_cast<float>(m_Data.size()) * LOAD_FACTOR);
 }
