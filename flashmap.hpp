@@ -1,11 +1,11 @@
 #pragma once
 #include <list>
 #include <vector>
+#include "flashmapimpl.hpp"
+#include "flashmapconcepts.hpp"
 
 
 namespace yulbax {
-#include "flashmapconcepts.hpp"
-#include "flashmapimpl.hpp"
 
     template<typename Key,
              typename Value,
@@ -17,9 +17,8 @@ namespace yulbax {
         static constexpr std::size_t DEFAULT_SIZE = 1024;
         static constexpr float LOAD_FACTOR = 0.875;
 
-        using Status = flashmapimpl::Status;
-        using KeyValue = flashmapimpl::KeyValue<Key, Value>;
-        using Element = flashmapimpl::Element<Key, Value>;
+        using KeyValue = KeyValue<Key, Value>;
+        using Element = Element<Key, Value>;
         using Vec = std::vector<Element>;
         using VecIterator = typename Vec::iterator;
         using ListIterator = typename std::list<VecIterator>::iterator;
@@ -98,17 +97,17 @@ namespace yulbax {
 
 namespace std {
     template<typename Key, typename Value>
-    struct tuple_size<yulbax::flashmapimpl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
+    struct tuple_size<KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
         static constexpr std::size_t value = 2;
     };
 
     template<std::size_t I, typename Key, typename Value>
-    struct tuple_element<I, yulbax::flashmapimpl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
+    struct tuple_element<I, KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
         using type = std::conditional_t<I == 0, const Key, Value>;
     };
 
     template<std::size_t I, typename Key, typename Value>
-    struct tuple_element<I, const yulbax::flashmapimpl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
+    struct tuple_element<I, const KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
         using type = std::conditional_t<I == 0, const Key, const Value>;
     };
 }

@@ -1,7 +1,8 @@
+// ReSharper disable CppUnnamedNamespaceInHeaderFile
 #pragma once
 
 // NESTED OBJECTS
-namespace flashmapimpl {
+namespace {
     enum class Status { FREE, OCCUPIED, DELETED };
 
     template<typename Key, typename Value>

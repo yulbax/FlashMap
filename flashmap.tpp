@@ -202,7 +202,7 @@ template<typename Key, typename Value, typename Hash> requires Hashable<Key, Has
 void flashmap<Key, Value, Hash>::rehash() {
     std::vector<Element> oldData = std::move(m_Data);
     m_Data.resize(oldData.size() * 2);
-    loadFactor();
+    m_MaxLoad *= 2;
 
     for (auto & it : m_ActiveIterators) {
         auto newIt = getNextPosition(it->kv.key);
