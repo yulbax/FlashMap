@@ -1,6 +1,6 @@
 #pragma once
 
-template<typename Key, typename Value, typename Hash> requires Hashable<Key, Hash>
+template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 template<typename VecRef, typename ValType>
 class flashmap<Key, Value, Hash>::IteratorBase {
     struct Proxy {
