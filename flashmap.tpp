@@ -37,14 +37,15 @@ bool flashmap<Key, Value, Hash>::insert(K && key, V && value) {
         rehash();
     }
 
-    auto it = getNextPosition(key);
+    std::size_t pos = getNextPosition(key);
+    auto & current = m_Data[pos];
 
-    if (it->status == Status::OCCUPIED) {
+    if (current.status == Status::OCCUPIED) {
         return false;
     }
 
     ++m_Count;
-    *it = Element(std::forward<K>(key), std::forward<V>(value));
+    current = Element(std::forward<K>(key), std::forward<V>(value));
 
     return true;
 }
@@ -56,37 +57,38 @@ Value & flashmap<Key, Value, Hash>::operator[](K && key) {
         rehash();
     }
 
-    auto it = getNextPosition(key);
-    if (it->status != Status::OCCUPIED) {
-        it->kv.key = std::forward<K>(key);
-        it->status = Status::OCCUPIED;
+    std::size_t pos = getNextPosition(key);
+    auto & current = m_Data[pos];
+    if (current.status != Status::OCCUPIED) {
+        current.kv.key = std::forward<K>(key);
+        current.status = Status::OCCUPIED;
         ++m_Count;
     }
 
-    return it->kv.value;
+    return current.kv.value;
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 Value & flashmap<Key, Value, Hash>::at(const Key & key) {
-    auto it = findIndex(key);
-    if (it == m_Data.end()) {
+    std::size_t pos = findIndex(key);
+    if (pos == m_Data.size()) {
         throw std::out_of_range("Key not found");
     }
-    return it->kv.value;
+    return m_Data[pos].kv.value;
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 const Value & flashmap<Key, Value, Hash>::at(const Key & key) const {
-    auto it = findIndex(key);
-    if (it == m_Data.end()) {
+    std::size_t pos = findIndex(key);
+    if (pos == m_Data.size()) {
         throw std::out_of_range("Key not found");
     }
-    return it->kv.value;
+    return m_Data[pos].kv.value;
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 bool flashmap<Key, Value, Hash>::contains(const Key & key) const {
-    return findIndex(key) != m_Data.end();
+    return findIndex(key) != m_Data.size();
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
@@ -97,9 +99,9 @@ std::size_t flashmap<Key, Value, Hash>::size() const {
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 bool flashmap<Key, Value, Hash>::erase(const Key & key) {
-    auto it = findIndex(key);
-    if (it != m_Data.end()) {
-        it->status = Status::DELETED;
+    std::size_t pos = findIndex(key);
+    if (pos != m_Data.size()) {
+        m_Data[pos].status = Status::DELETED;
         --m_Count;
         return true;
     }
@@ -125,11 +127,10 @@ flashmap<Key, Value, Hash>::begin() {
         ++index;
     }
 
-    auto it = m_Data.begin() + index;
-    m_ActiveIterators.emplace_front(it);
+    m_ActiveIterators.emplace_front(index);
     auto listIt = m_ActiveIterators.begin();
 
-    return iterator(listIt, *this);
+    return iterator(listIt, this);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
@@ -142,154 +143,141 @@ flashmap<Key, Value, Hash>::begin() const {
         ++index;
     }
 
-    auto it = m_Data.begin() + index;
-    m_ActiveIterators.emplace_front(it);
+    m_ActiveIterators.emplace_front(index);
     auto listIt = m_ActiveIterators.begin();
-
-    return const_iterator(listIt, *this);
+    return const_iterator(listIt, this);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 typename flashmap<Key, Value, Hash>::iterator
 flashmap<Key, Value, Hash>::end() {
-    m_ActiveIterators.emplace_front(m_Data.end());
+    m_ActiveIterators.emplace_front(m_Data.size());
     auto listIt = m_ActiveIterators.begin();
-
-    return iterator(listIt, *this);
+    return iterator(listIt, this);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 typename flashmap<Key, Value, Hash>::const_iterator
 flashmap<Key, Value, Hash>::end() const {
-    m_ActiveIterators.emplace_front(m_Data.end());
+    m_ActiveIterators.emplace_front(m_Data.size());
     auto listIt = m_ActiveIterators.begin();
-    return const_iterator(listIt, *this);
+    return const_iterator(listIt, this);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 typename flashmap<Key, Value, Hash>::iterator
 flashmap<Key, Value, Hash>::find(const Key & key) {
-    auto it = findIndex(key);
-    if (it == m_Data.end()) {
+    const std::size_t pos = findIndex(key);
+    if (pos == m_Data.size()) {
         return end();
     }
-    m_ActiveIterators.emplace_front(it);
+    m_ActiveIterators.emplace_front(pos);
     auto listIt = m_ActiveIterators.begin();
-    return iterator(listIt, *this);
+    return iterator(listIt, this);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 typename flashmap<Key, Value, Hash>::const_iterator
 flashmap<Key, Value, Hash>::find(const Key & key) const {
-    auto it = findIndex(key);
-    if (it == m_Data.end()) {
+    const std::size_t pos = findIndex(key);
+    if (pos == m_Data.size()) {
         return end();
     }
-    m_ActiveIterators.emplace_front(it);
+    m_ActiveIterators.emplace_front(pos);
     auto listIt = m_ActiveIterators.begin();
-
-    return const_iterator(listIt, *this);
+    return const_iterator(listIt, this);
 }
 
 
 // PRIVATE METHODS
-template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
-std::size_t flashmap<Key, Value, Hash>::hash(const Key & key) const {
-    return m_Hasher(key);
-}
-
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 void flashmap<Key, Value, Hash>::rehash() {
     std::vector<Element> oldData = std::move(m_Data);
     m_Data.resize(oldData.size() * 2);
     m_MaxLoad *= 2;
 
-    for (auto & it : m_ActiveIterators) {
-        auto newIt = getNextPosition(it->kv.key);
-        newIt->kv = std::move(it->kv);
-        newIt->status = Status::OCCUPIED;
-        it->status = Status::DELETED;
-        it = newIt;
+    for (auto & pos : m_ActiveIterators) {
+        auto & oldCell = oldData[pos];
+        std::size_t newPos = getNextPosition(oldCell.kv.key);
+        auto & newCell = m_Data[newPos];
+        newCell.kv = std::move(oldCell.kv);
+        newCell.status = Status::OCCUPIED;
+        oldCell.status = Status::DELETED;
+        pos = newPos;
     }
 
     for (auto & element : oldData) {
         if (element.status == Status::OCCUPIED) {
-            auto it = getNextPosition(element.kv.key);
-            it->kv = std::move(element.kv);
-            it->status = Status::OCCUPIED;
+            std::size_t newPos = getNextPosition(element.kv.key);
+            auto & newCell = m_Data[newPos];
+            newCell.kv = std::move(element.kv);
+            newCell.status = Status::OCCUPIED;
         }
     }
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 std::size_t flashmap<Key, Value, Hash>::nextCell(const std::size_t index, const std::size_t shift) const {
-    return (index + shift * shift) & (m_Data.size() - 1);
+    return (index + shift) & (m_Data.size() - 1);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
-auto flashmap<Key, Value, Hash>::findIndex(const Key & key) {
-    const std::size_t index = hash(key);
-    auto current = m_Data.begin();
+std::size_t flashmap<Key, Value, Hash>::findIndex(const Key & key) {
+    const std::size_t index = m_Hasher(key);
 
     for (std::size_t shift = 0; ; ++shift) {
         std::size_t pos = nextCell(index, shift);
-        current = m_Data.begin() + pos;
+        auto & current = m_Data[pos];
 
-        if (current->status == Status::FREE) break;
+        if (current.status == Status::FREE) break;
 
-        if (current->status == Status::OCCUPIED && current->kv.key == key) {
-            return current;
+        if (current.status == Status::OCCUPIED && current.kv.key == key) {
+            return pos;
         }
     }
 
-    return m_Data.end();
+    return m_Data.size();
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
-auto flashmap<Key, Value, Hash>::findIndex(const Key & key) const {
-    const std::size_t index = hash(key);
-    auto current = m_Data.begin();
-
-    for (std::size_t shift = 0; ; ++shift) {
-        current = m_Data.begin() + nextCell(index, shift);
-
-        if (current->status == Status::FREE) break;
-
-        if (current->status == Status::OCCUPIED && current->kv.key == key) {
-            return current;
-        }
-    }
-
-    return m_Data.end();
-}
-
-
-template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
-auto flashmap<Key, Value, Hash>::getNextPosition(const Key & key) {
-    const std::size_t index = hash(key);
-    auto firstDeleted = m_Data.end();
+std::size_t flashmap<Key, Value, Hash>::findIndex(const Key & key) const {
+    const std::size_t index = m_Hasher(key);
 
     for (std::size_t shift = 0; ; ++shift) {
         std::size_t pos = nextCell(index, shift);
-        auto current = m_Data.begin() + pos;
+        auto & current = m_Data[pos];
 
-        if (current->kv.key == key && current->status == Status::OCCUPIED) return current;
+        if (current.status == Status::FREE) break;
 
-        if (current->status == Status::DELETED && firstDeleted == m_Data.end()) {
-            firstDeleted = current;
+        if (current.status == Status::OCCUPIED && current.kv.key == key) {
+            return pos;
+        }
+    }
+
+    return m_Data.size();
+}
+
+
+template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
+std::size_t flashmap<Key, Value, Hash>::getNextPosition(const Key & key) {
+    const std::size_t index = m_Hasher(key);
+    auto firstDeleted = m_Data.size();
+
+    for (std::size_t shift = 0; ; ++shift) {
+        std::size_t pos = nextCell(index, shift);
+        auto & current = m_Data[pos];
+
+        if (current.kv.key == key && current.status == Status::OCCUPIED) return pos;
+
+        if (current.status == Status::DELETED && firstDeleted == m_Data.size()) {
+            firstDeleted = pos;
         }
 
-        if (current->status == Status::FREE) {
-            return firstDeleted != m_Data.end() ? firstDeleted : current;
+        if (current.status == Status::FREE) {
+            return firstDeleted != m_Data.size() ? firstDeleted : pos;
         }
     }
 }
-
-template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
-void flashmap<Key, Value, Hash>::killIterator(ListIterator iter) const {
-    m_ActiveIterators.erase(iter);
-}
-
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 void flashmap<Key, Value, Hash>::loadFactor() {

@@ -116,7 +116,7 @@ std::cout << "Still valid: " << iter->first << " -> " << iter->second << "\n";
 FlashMap uses **open addressing** instead of chaining for collision resolution. When a collision occurs, it uses **quadratic probing** to find the next available slot:
 
 ```
-nextPosition = (hash + i²) % tableSize
+nextPosition = ( hash + i(i+1) ) % tableSize
 ```
 
 This approach provides:
