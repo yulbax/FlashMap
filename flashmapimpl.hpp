@@ -60,20 +60,33 @@ namespace yulbax::container::flashmap::impl {
         }
     };
 
-    enum class Status { FREE, OCCUPIED, DELETED };
+    enum class Status : uint8_t { FREE, OCCUPIED, DELETED };
 
-    template<typename Key, typename Value>
-    class Element {
-    public:
-        Element() : kv(), status(Status::FREE) {}
+    template<typename K, typename V>
+    struct Vectors {
+        explicit Vectors(std::size_t size) : KVs(size), statuses(size), hashes(size) {}
 
-        template<typename K, typename V>
-        Element(K && key, V && value)
-            : kv(std::forward<K>(key), std::forward<V>(value)), status(Status::OCCUPIED) {
+        std::vector<KeyValue<K,V>> KVs;
+        std::vector<Status> statuses;
+        std::vector<std::size_t> hashes;
+
+        std::tuple<KeyValue<K,V>&, Status&, size_t&> operator[](const std::size_t index) {
+            return {KVs[index], statuses[index], hashes[index]};
         }
 
-        KeyValue<Key, Value> kv;
-        Status status;
+        std::tuple<const KeyValue<K,V>&, const Status&, const std::size_t&> operator[](const std::size_t index) const {
+            return {KVs[index], statuses[index], hashes[index]};
+        }
+
+        [[nodiscard]] std::size_t size() const {
+            return KVs.size();
+        }
+
+        void resize(const std::size_t size) {
+            KVs.resize(size);
+            statuses.resize(size);
+            hashes.resize(size);
+        }
     };
 }
 

@@ -1,6 +1,8 @@
 #pragma once
 #include <list>
 #include <vector>
+#include <experimental/simd>
+#include <immintrin.h>
 #include "flashmapconcepts.hpp"
 #include "flashmapimpl.hpp"
 
@@ -18,8 +20,7 @@ namespace yulbax {
 
         using Status   = container::flashmap::impl::Status;
         using KeyValue = container::flashmap::impl::KeyValue<Key, Value>;
-        using Element  = container::flashmap::impl::Element<Key, Value>;
-        using Vec      = std::vector<Element>;
+        using Data     = container::flashmap::impl::Vectors<Key, Value>;
 
     public:
 
@@ -66,16 +67,15 @@ namespace yulbax {
     private:
         void rehash();
 
-        [[nodiscard]] std::size_t nextCell(std::size_t index, std::size_t shift) const;
+        [[nodiscard]] std::size_t nextCell(std::size_t hash, std::size_t shift) const;
 
-        std::size_t findIndex(const Key & key);
         [[nodiscard]] std::size_t findIndex(const Key & key) const;
 
-        std::size_t getNextPosition(const Key & key);
+        std::size_t getNextPosition(std::size_t hash);
 
         void loadFactor();
 
-        Vec m_Data;
+        Data m_Data;
         Hash m_Hasher;
         std::size_t m_Count;
         std::size_t m_MaxLoad;

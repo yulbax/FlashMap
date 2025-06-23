@@ -74,26 +74,24 @@ public:
 
     auto & operator*() {
         isAlive();
-        auto & cell = m_Map->m_Data[*m_CurrentPosition];
-        return cell.kv;
+        return m_Map->m_Data.KVs[*m_CurrentPosition];
     }
 
     const auto & operator*() const {
         isAlive();
-        auto & cell = m_Map->m_Data[*m_CurrentPosition];
-        return cell.kv;
+        return m_Map->m_Data.KVs[*m_CurrentPosition];
     }
 
     auto operator->() {
         isAlive();
-        auto & cell = m_Map->m_Data[*m_CurrentPosition];
-        return Proxy{cell.kv.key, cell.kv.value};
+        auto & cell = m_Map->m_Data.KVs[*m_CurrentPosition];
+        return Proxy{cell.key, cell.value};
     }
 
     auto operator->() const {
         isAlive();
-        auto & cell = m_Map->m_Data[*m_CurrentPosition];
-        return Proxy{cell.kv.key, cell.kv.value};
+        auto & cell = m_Map->m_Data.KVs[*m_CurrentPosition];
+        return Proxy{cell.key, cell.value};
     }
 
     template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
@@ -110,7 +108,7 @@ public:
 
 private:
     void isAlive() const {
-        if (m_Map->m_Data[*m_CurrentPosition].status == Status::DELETED) {
+        if (m_Map->m_Data.statuses[*m_CurrentPosition] == Status::DELETED) {
             throw std::out_of_range("Attempted to access a deleted value");
         }
     }
@@ -120,7 +118,7 @@ private:
         do {
             ++(*m_CurrentPosition);
         } while (*m_CurrentPosition != m_Map->m_Data.size()
-              && m_Map->m_Data[*m_CurrentPosition].status != Status::OCCUPIED);
+              && m_Map->m_Data.statuses[*m_CurrentPosition] != Status::OCCUPIED);
     }
 
     flashmap * m_Map;
@@ -176,26 +174,24 @@ public:
 
     auto & operator*() {
         isAlive();
-        auto & cell = m_Map->m_Data[*m_CurrentPosition];
-        return cell.kv;
+        return m_Map->m_Data.KVs[*m_CurrentPosition];
     }
 
     const auto & operator*() const {
         isAlive();
-        auto & cell = m_Map->m_Data[*m_CurrentPosition];
-        return cell.kv;
+        return m_Map->m_Data.KVs[*m_CurrentPosition];
     }
 
     auto operator->() {
         isAlive();
-        auto & cell = m_Map->m_Data[*m_CurrentPosition];
-        return Proxy{cell.kv.key, cell.kv.value};
+        auto & cell = m_Map->m_Data.KVs[*m_CurrentPosition];
+        return Proxy{cell.key, cell.value};
     }
 
     auto operator->() const {
         isAlive();
-        auto & cell = m_Map->m_Data[*m_CurrentPosition];
-        return Proxy{cell.kv.key, cell.kv.value};
+        auto & cell = m_Map->m_Data.KVs[*m_CurrentPosition];
+        return Proxy{cell.key, cell.value};
     }
 
     template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
@@ -212,7 +208,7 @@ public:
 
 private:
     void isAlive() const {
-        if (m_Map->m_Data[*m_CurrentPosition].status == Status::DELETED) {
+        if (m_Map->m_Data.statuses[*m_CurrentPosition] == Status::DELETED) {
             throw std::out_of_range("Attempted to access a deleted value");
         }
     }
@@ -222,7 +218,7 @@ private:
         do {
             ++(*m_CurrentPosition);
         } while (*m_CurrentPosition != m_Map->m_Data.size()
-              && m_Map->m_Data[*m_CurrentPosition].status != Status::OCCUPIED);
+              && m_Map->m_Data.statuses[*m_CurrentPosition] != Status::OCCUPIED);
     }
 
     const flashmap * m_Map;
