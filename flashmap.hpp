@@ -1,8 +1,7 @@
 #pragma once
+
 #include <list>
 #include <vector>
-#include <experimental/simd>
-#include <immintrin.h>
 #include "flashmapconcepts.hpp"
 #include "flashmapimpl.hpp"
 
