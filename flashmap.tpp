@@ -218,7 +218,7 @@ void flashmap<Key, Value, Hash>::rehash() {
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 std::size_t flashmap<Key, Value, Hash>::nextCell(const std::size_t index, const std::size_t shift) const {
-    return (index + shift) & (m_Data.size() - 1);
+    return (index + shift + shift * shift) & (m_Data.size() - 1);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>

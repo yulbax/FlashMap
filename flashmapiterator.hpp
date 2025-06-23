@@ -62,7 +62,9 @@ public:
     }
 
     ~iterator() {
-        m_Map->m_ActiveIterators.erase(m_CurrentPosition);
+        if (m_Map) {
+            m_Map->m_ActiveIterators.erase(m_CurrentPosition);
+        }
     }
 
     iterator & operator++() {
@@ -94,12 +96,14 @@ public:
         return Proxy{cell.kv.key, cell.kv.value};
     }
 
-    bool operator==(const iterator & other) const {
+    template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
+    bool operator==(const Iterator & other) const {
         if (*m_CurrentPosition != m_Map->m_Data.size()) isAlive();
         return *m_CurrentPosition == *other.m_CurrentPosition;
     }
 
-    bool operator!=(const iterator & other) const {
+    template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
+    bool operator!=(const Iterator & other) const {
         if (*m_CurrentPosition != m_Map->m_Data.size()) isAlive();
         return *m_CurrentPosition != *other.m_CurrentPosition;
     }
@@ -121,6 +125,7 @@ private:
 
     flashmap * m_Map;
     ListIterator m_CurrentPosition;
+    friend class const_iterator;
 };
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
@@ -159,7 +164,9 @@ public:
     const_iterator operator=(const const_iterator &) = delete;
 
     ~const_iterator() {
-        m_Map->m_ActiveIterators.erase(m_CurrentPosition);
+        if (m_Map) {
+            m_Map->m_ActiveIterators.erase(m_CurrentPosition);
+        }
     }
 
     const_iterator & operator++() {
@@ -191,12 +198,14 @@ public:
         return Proxy{cell.kv.key, cell.kv.value};
     }
 
-    bool operator==(const iterator & other) const {
+    template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
+    bool operator==(const Iterator & other) const {
         if (*m_CurrentPosition != m_Map->m_Data.size()) isAlive();
         return *m_CurrentPosition == *other.m_CurrentPosition;
     }
 
-    bool operator!=(const iterator & other) const {
+    template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
+    bool operator!=(const Iterator & other) const {
         if (*m_CurrentPosition != m_Map->m_Data.size()) isAlive();
         return *m_CurrentPosition != *other.m_CurrentPosition;
     }
@@ -218,4 +227,5 @@ private:
 
     const flashmap * m_Map;
     ListIterator m_CurrentPosition;
+    friend class iterator;
 };
