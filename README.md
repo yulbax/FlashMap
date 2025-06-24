@@ -32,6 +32,9 @@ yulbax::flashmap<int, std::string> map;
 map.insert(1, "hello");
 map.insert(2, "world");
 
+// Returns iterator to inserted or existing element and insertion result
+auto [it, bool] = map.emplace(3, "!");
+
 // Access elements (creates if not exists)
 map[3] = "new value";
 
@@ -50,6 +53,7 @@ try {
 
 // Remove elements
 map.erase(2);
+map.erase(it);
 
 // Get container size
 std::cout << "Size: " << map.size() << "\n";
@@ -214,15 +218,6 @@ concept Hashable = requires(Key key, HashFunc hasher)
 { { hasher(key) } -> std::convertible_to<std::size_t>; };
 ```
 
-## Structured Bindings Support
-
-Full support for structured bindings through `std::tuple_element` specialization:
-```cpp
-for (auto& [key, value] : map) {
-    // key is const Key&, value is Value&
-}
-```
-
 ## Constants
 
 ```cpp
@@ -241,7 +236,6 @@ This container is **not thread-safe**. External synchronization is required for 
 - Bitwise AND operation for fast modulo (size automatically scales to power-of-2)
 - Perfect forwarding for efficient key-value insertion
 - Automatic iterator lifecycle management
-- Support for structured bindings via `std::tuple_element` specialization
 
 ## Performance Comparison
 Benchmark results comparing FlashMap with std::unordered_map (100,000 iterations):

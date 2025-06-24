@@ -18,7 +18,6 @@ namespace yulbax {
         static constexpr float LOAD_FACTOR = 0.875;
 
         using Status   = container::flashmap::impl::Status;
-        using KeyValue = container::flashmap::impl::KeyValue<Key, Value>;
         using Data     = container::flashmap::impl::Vectors<Key, Value>;
 
     public:
@@ -40,6 +39,9 @@ namespace yulbax {
         template<typename K, typename V>
         bool insert(K && key, V && value);
 
+        template<typename K, typename V>
+        std::pair<iterator, bool> emplace(K && k, V && v);
+
         template<typename K>
         Value & operator[](K && key);
 
@@ -51,6 +53,8 @@ namespace yulbax {
         [[nodiscard]] std::size_t size() const;
 
         bool erase(const Key & key);
+        bool erase(iterator it);
+        bool erase(const_iterator it);
 
         void clear();
 
@@ -85,19 +89,19 @@ namespace yulbax {
     #include "flashmap.tpp"
 }
 
-namespace std {
-    template<typename Key, typename Value>
-    struct tuple_size<yulbax::container::flashmap::impl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
-        static constexpr std::size_t value = 2;
-    };
-
-    template<std::size_t I, typename Key, typename Value>
-    struct tuple_element<I, yulbax::container::flashmap::impl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
-        using type = std::conditional_t<I == 0, const Key, Value>;
-    };
-
-    template<std::size_t I, typename Key, typename Value>
-    struct tuple_element<I, const yulbax::container::flashmap::impl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
-        using type = std::conditional_t<I == 0, const Key, const Value>;
-    };
-}
+// namespace std {
+//     template<typename Key, typename Value>
+//     struct tuple_size<yulbax::container::flashmap::impl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
+//         static constexpr std::size_t value = 2;
+//     };
+//
+//     template<std::size_t I, typename Key, typename Value>
+//     struct tuple_element<I, yulbax::container::flashmap::impl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
+//         using type = std::conditional_t<I == 0, const Key, Value>;
+//     };
+//
+//     template<std::size_t I, typename Key, typename Value>
+//     struct tuple_element<I, const yulbax::container::flashmap::impl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
+//         using type = std::conditional_t<I == 0, const Key, const Value>;
+//     };
+// }

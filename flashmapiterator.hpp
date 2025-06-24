@@ -8,24 +8,18 @@ namespace concepts {
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 class flashmap<Key, Value, Hash>::iterator {
-    struct Proxy {
-        const Key & first;
-        Value & second;
 
-        Proxy * operator->() { return this; }
-    };
     using ListIterator = std::list<std::size_t>::iterator;
 
 public:
 
     using iterator_category = std::forward_iterator_tag;
-    using value_type = KeyValue;
+    using value_type = std::pair<const Key, Value>;
     using difference_type = std::ptrdiff_t;
-    using pointer = Proxy*;
-    using reference = KeyValue&;
+    using pointer = std::pair<const Key, Value>*;
+    using reference = value_type&;
 
-
-    iterator(ListIterator pos, flashmap * map) : m_Map(map), m_CurrentPosition(pos) {}
+    iterator(const ListIterator pos, flashmap * map) : m_Map(map), m_CurrentPosition(pos) {}
 
     iterator(const iterator & other) {
         if (other.m_Map == nullptr) return;
@@ -34,7 +28,9 @@ public:
         m_CurrentPosition = m_Map->m_ActiveIterators.begin();
     }
 
-    explicit iterator(const const_iterator & other) : m_Map(other.m_Map) {
+    explicit iterator(const const_iterator & other) {
+        if (other.m_Map == nullptr) return;
+        m_Map = other.m_Map;
         m_Map->m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
         m_CurrentPosition = m_Map->m_ActiveIterators.begin();
     }
@@ -47,9 +43,8 @@ public:
     iterator & operator=(const iterator & other) {
         if (this == &other) return *this;
         m_Map = other.m_Map;
-        auto & test = *m_Map;
-        test.m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
-        m_CurrentPosition = test.m_ActiveIterators.begin();
+        m_Map->m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
+        m_CurrentPosition = m_Map->m_ActiveIterators.begin();
         return *this;
     }
 
@@ -72,26 +67,15 @@ public:
         return *this;
     }
 
-    auto & operator*() {
+    auto & operator*() const {
         isAlive();
-        return m_Map->m_Data.KVs[*m_CurrentPosition];
-    }
-
-    const auto & operator*() const {
-        isAlive();
-        return m_Map->m_Data.KVs[*m_CurrentPosition];
-    }
-
-    auto operator->() {
-        isAlive();
-        auto & cell = m_Map->m_Data.KVs[*m_CurrentPosition];
-        return Proxy{cell.key, cell.value};
+        return reinterpret_cast<std::pair<const Key, Value>&>(m_Map->m_Data.KVs[*m_CurrentPosition]);
     }
 
     auto operator->() const {
         isAlive();
         auto & cell = m_Map->m_Data.KVs[*m_CurrentPosition];
-        return Proxy{cell.key, cell.value};
+        return &reinterpret_cast<std::pair<const Key, Value>&>(m_Map->m_Data.KVs[*m_CurrentPosition]);
     }
 
     template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
@@ -102,8 +86,7 @@ public:
 
     template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
     bool operator!=(const Iterator & other) const {
-        if (*m_CurrentPosition != m_Map->m_Data.size()) isAlive();
-        return *m_CurrentPosition != *other.m_CurrentPosition;
+        return !(*this == other);
     }
 
 private:
@@ -124,25 +107,21 @@ private:
     flashmap * m_Map;
     ListIterator m_CurrentPosition;
     friend class const_iterator;
+    friend class flashmap;
 };
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 class flashmap<Key, Value, Hash>::const_iterator {
-    struct Proxy {
-        const Key & first;
-        const Value & second;
 
-        Proxy * operator->() { return this; }
-    };
     using ListIterator = std::list<std::size_t>::iterator;
 
 public:
 
     using iterator_category = std::forward_iterator_tag;
-    using value_type = KeyValue;
+    using value_type = std::pair<const Key, const Value>;
     using difference_type = std::ptrdiff_t;
-    using pointer = Proxy*;
-    using reference = KeyValue&;
+    using pointer = std::pair<const Key, const Value>*;
+    using reference = value_type&;
 
 
     const_iterator(ListIterator pos, const flashmap * map) : m_Map(map), m_CurrentPosition(pos) {}
@@ -154,7 +133,9 @@ public:
         m_CurrentPosition = m_Map->m_ActiveIterators.begin();
     }
 
-    explicit const_iterator(const iterator & other) : m_Map(other.m_Map) {
+    explicit const_iterator(const iterator & other) {
+        if (other.m_Map == nullptr) return;
+        m_Map = other.m_Map;
         m_Map->m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
         m_CurrentPosition = m_Map->m_ActiveIterators.begin();
     }
@@ -172,26 +153,14 @@ public:
         return *this;
     }
 
-    auto & operator*() {
+    auto & operator*() const {
         isAlive();
-        return m_Map->m_Data.KVs[*m_CurrentPosition];
-    }
-
-    const auto & operator*() const {
-        isAlive();
-        return m_Map->m_Data.KVs[*m_CurrentPosition];
-    }
-
-    auto operator->() {
-        isAlive();
-        auto & cell = m_Map->m_Data.KVs[*m_CurrentPosition];
-        return Proxy{cell.key, cell.value};
+        return reinterpret_cast<std::pair<const Key, const Value>&>(m_Map->m_Data.KVs[*m_CurrentPosition]);
     }
 
     auto operator->() const {
         isAlive();
-        auto & cell = m_Map->m_Data.KVs[*m_CurrentPosition];
-        return Proxy{cell.key, cell.value};
+        return &reinterpret_cast<std::pair<const Key, const Value>&>(m_Map->m_Data.KVs[*m_CurrentPosition]);
     }
 
     template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
@@ -202,8 +171,7 @@ public:
 
     template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
     bool operator!=(const Iterator & other) const {
-        if (*m_CurrentPosition != m_Map->m_Data.size()) isAlive();
-        return *m_CurrentPosition != *other.m_CurrentPosition;
+        return !(*this == other);
     }
 
 private:
@@ -221,7 +189,10 @@ private:
               && m_Map->m_Data.statuses[*m_CurrentPosition] != Status::OCCUPIED);
     }
 
+
+
     const flashmap * m_Map;
     ListIterator m_CurrentPosition;
     friend class iterator;
+    friend class flashmap;
 };
