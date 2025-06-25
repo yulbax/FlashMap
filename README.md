@@ -1,10 +1,10 @@
 # FlashMap
 
-A high-performance, template-based hash map implementation using open addressing with quadratic probing. This container provides O(1) average-case performance for insertions, lookups, and deletions while maintaining memory efficiency through flat storage. **The key feature of this implementation is stable iterators that remain valid even during rehashing operations.**
+A high-performance, template-based hash map implementation using open addressing with linear probing. This container provides O(1) average-case performance for insertions, lookups, and deletions while maintaining memory efficiency through flat storage. **The key feature of this implementation is stable iterators that remain valid even during rehashing operations.**
 
 ## Features
 
-- **Open Addressing**: Uses quadratic probing for collision resolution
+- **Open Addressing**: Uses linear probing for collision resolution
 - **Template-based**: Generic implementation supporting any key-value types
 - **Power-of-Two Sizing**: Automatic construction with power-of-two size
 - **Automatic Rehashing**: Dynamically resizes when load factor exceeds threshold
@@ -115,12 +115,12 @@ std::cout << "Still valid: " << iter->first << " -> " << iter->second << "\n";
 
 ## How It Works
 
-### Open Addressing with Quadratic Probing
+### Open Addressing with Linear Probing
 
-FlashMap uses **open addressing** instead of chaining for collision resolution. When a collision occurs, it uses **quadratic probing** to find the next available slot:
+FlashMap uses **open addressing** instead of chaining for collision resolution. When a collision occurs, it uses **linear probing** to find the next available slot:
 
 ```
-nextPosition = ( hash + i(i+1) ) % tableSize
+nextPosition = (hash + i) % tableSize
 ```
 
 This approach provides:

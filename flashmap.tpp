@@ -248,16 +248,26 @@ void flashmap<Key, Value, Hash>::rehash() {
     auto last = --m_ActiveIterators.end();
     *last = newSize; --last; *last = newSize;
 
-    for (auto it = m_ActiveIterators.begin(); it != std::prev(m_ActiveIterators.end(), 2); ++it) {
-        auto & pos = *it;
-        auto [oldKV, oldStatus, oldHash] = oldData[pos];
-        std::size_t newPos = getNextPosition(oldKV.first, oldHash);
-        auto [newKV, newStatus, newHash] = m_Data[newPos];
-        newKV = std::move(oldKV);
-        newStatus = Status::OCCUPIED;
-        newHash = oldHash;
-        oldStatus = Status::DELETED;
-        pos = newPos;
+    if (m_ActiveIterators.size() > 2) {
+        flashmap<std::size_t, std::size_t> updatedPositions(m_ActiveIterators.size());
+
+        for (auto it = m_ActiveIterators.begin(); it != last; ++it) {
+            auto & pos = *it;
+            if (updatedPositions.contains(pos)) {
+                pos = updatedPositions.at(pos);
+                continue;
+            }
+
+            auto [oldKV, oldStatus, oldHash] = oldData[pos];
+            std::size_t newPos = getNextPosition(oldKV.first, oldHash);
+            auto [newKV, newStatus, newHash] = m_Data[newPos];
+            newKV = std::move(oldKV);
+            newStatus = Status::OCCUPIED;
+            newHash = oldHash;
+            oldStatus = Status::DELETED;
+            updatedPositions[pos] = newPos;
+            pos = newPos;
+        }
     }
 
     for (size_t i = 0; i < oldData.size(); ++i) {
@@ -273,7 +283,7 @@ void flashmap<Key, Value, Hash>::rehash() {
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 std::size_t flashmap<Key, Value, Hash>::nextCell(const HashType hash, const std::size_t shift) const {
-    return (hash + shift + shift * shift) & (m_Data.size() - 1);
+    return (hash + shift) & (m_Data.size() - 1);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
