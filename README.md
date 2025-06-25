@@ -182,13 +182,18 @@ flashmap& operator=(const FlashMap& other);
 ### Modification
 ```cpp
 template<typename K, typename V>
-bool insert(K&& key, V&& value);          // Insert element
+bool insert(K&& key, V&& value);                        // Insert element
+
+template<typename K, typename V>
+std::pair<iterator, bool> emplace(K&& key, V&& value);  // Emplace element
 
 template<typename K>
-Value& operator[](K&& key);               // Access with creation
+Value& operator[](K&& key);                             // Access with creation
 
-bool erase(const Key& key);               // Remove element
-void clear();                             // Clear all elements
+bool erase(const Key& key);                             // Remove element
+bool erase(iterator it);
+
+void clear();                                           // Clear all elements
 ```
 
 ### Access
@@ -215,7 +220,7 @@ Uses the `Hashable` concept for compile-time type checking:
 ```cpp
 template<typename Key, typename HashFunc>
 concept Hashable = requires(Key key, HashFunc hasher)
-{ { hasher(key) } -> std::convertible_to<std::size_t>; };
+{ { hasher(key) } -> std::unsigned_integral; };
 ```
 
 ## Constants
@@ -236,6 +241,12 @@ This container is **not thread-safe**. External synchronization is required for 
 - Bitwise AND operation for fast modulo (size automatically scales to power-of-2)
 - Perfect forwarding for efficient key-value insertion
 - Automatic iterator lifecycle management
+- Supports optional key comparison via CHECK_KEY_EQUALITY CMake option
+  - When CHECK_KEY_EQUALITY is enabled, the hash table performs full key comparison for collision resolution
+  - When CHECK_KEY_EQUALITY is disabled, comparison is performed solely based on the stored hash; use a 128-bit hash functor to minimize collision probability
+
+
+
 
 ## Performance Comparison
 Benchmark results comparing FlashMap with std::unordered_map (100,000 iterations):

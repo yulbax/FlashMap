@@ -1,5 +1,5 @@
 #pragma once
-
+#include <new>
 #include <list>
 #include <vector>
 #include "flashmapconcepts.hpp"
@@ -17,8 +17,9 @@ namespace yulbax {
         static constexpr std::size_t DEFAULT_SIZE = 1024;
         static constexpr float LOAD_FACTOR = 0.875;
 
+        using HashType = decltype(std::declval<Hash>()(std::declval<Key>()));
         using Status   = container::flashmap::impl::Status;
-        using Data     = container::flashmap::impl::Vectors<Key, Value>;
+        using Data     = container::flashmap::impl::Vectors<Key, Value, HashType>;
 
     public:
 
@@ -40,7 +41,7 @@ namespace yulbax {
         bool insert(K && key, V && value);
 
         template<typename K, typename V>
-        std::pair<iterator, bool> emplace(K && k, V && v);
+        std::pair<iterator, bool> emplace(K && key, V && value);
 
         template<typename K>
         Value & operator[](K && key);
@@ -54,7 +55,6 @@ namespace yulbax {
 
         bool erase(const Key & key);
         bool erase(iterator it);
-        bool erase(const_iterator it);
 
         void clear();
 
@@ -64,17 +64,17 @@ namespace yulbax {
         iterator begin();
         [[nodiscard]] const_iterator begin() const;
 
-        iterator end();
-        [[nodiscard]] const_iterator end() const;
+        iterator & end();
+        [[nodiscard]] const_iterator & end() const;
 
     private:
         void rehash();
 
-        [[nodiscard]] std::size_t nextCell(std::size_t hash, std::size_t shift) const;
+        [[nodiscard]] std::size_t nextCell(HashType hash, std::size_t shift) const;
 
         [[nodiscard]] std::size_t findIndex(const Key & key) const;
 
-        std::size_t getNextPosition(std::size_t hash);
+        std::size_t getNextPosition(const Key & key, HashType hash);
 
         void loadFactor();
 
@@ -83,25 +83,10 @@ namespace yulbax {
         std::size_t m_Count;
         std::size_t m_MaxLoad;
         mutable std::list<std::size_t> m_ActiveIterators;
+        iterator endIt;
+        const_iterator cendIt;
     };
 
     #include "flashmapiterator.hpp"
     #include "flashmap.tpp"
 }
-
-// namespace std {
-//     template<typename Key, typename Value>
-//     struct tuple_size<yulbax::container::flashmap::impl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
-//         static constexpr std::size_t value = 2;
-//     };
-//
-//     template<std::size_t I, typename Key, typename Value>
-//     struct tuple_element<I, yulbax::container::flashmap::impl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
-//         using type = std::conditional_t<I == 0, const Key, Value>;
-//     };
-//
-//     template<std::size_t I, typename Key, typename Value>
-//     struct tuple_element<I, const yulbax::container::flashmap::impl::KeyValue<Key, Value>> { // NOLINT(*-dcl58-cpp)
-//         using type = std::conditional_t<I == 0, const Key, const Value>;
-//     };
-// }

@@ -67,15 +67,14 @@ public:
         return *this;
     }
 
-    auto & operator*() const {
+    std::pair<const Key, Value> & operator*() const {
         isAlive();
-        return reinterpret_cast<std::pair<const Key, Value>&>(m_Map->m_Data.KVs[*m_CurrentPosition]);
+        return *std::launder(reinterpret_cast<std::pair<const Key, Value>*>(&m_Map->m_Data.KVs[*m_CurrentPosition]));
     }
 
     auto operator->() const {
         isAlive();
-        auto & cell = m_Map->m_Data.KVs[*m_CurrentPosition];
-        return &reinterpret_cast<std::pair<const Key, Value>&>(m_Map->m_Data.KVs[*m_CurrentPosition]);
+        return std::launder(reinterpret_cast<std::pair<const Key, Value>*>(&m_Map->m_Data.KVs[*m_CurrentPosition]));
     }
 
     template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
@@ -140,7 +139,20 @@ public:
         m_CurrentPosition = m_Map->m_ActiveIterators.begin();
     }
 
-    const_iterator operator=(const const_iterator &) = delete;
+    const_iterator & operator=(const const_iterator & other) {
+        if (this == &other) return *this;
+        m_Map = other.m_Map;
+        m_Map->m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
+        m_CurrentPosition = m_Map->m_ActiveIterators.begin();
+        return *this;
+    }
+
+    const_iterator & operator=(const iterator & other) {
+        m_Map = other.m_Map;
+        m_Map->m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
+        m_CurrentPosition = m_Map->m_ActiveIterators.begin();
+        return *this;
+    }
 
     ~const_iterator() {
         if (m_Map) {
@@ -155,12 +167,12 @@ public:
 
     auto & operator*() const {
         isAlive();
-        return reinterpret_cast<std::pair<const Key, const Value>&>(m_Map->m_Data.KVs[*m_CurrentPosition]);
+        return *std::launder(reinterpret_cast<std::pair<const Key, const Value>*>(&m_Map->m_Data.KVs[*m_CurrentPosition]));
     }
 
     auto operator->() const {
         isAlive();
-        return &reinterpret_cast<std::pair<const Key, const Value>&>(m_Map->m_Data.KVs[*m_CurrentPosition]);
+        return std::launder(reinterpret_cast<std::pair<const Key, const Value>*>(&m_Map->m_Data.KVs[*m_CurrentPosition]));
     }
 
     template<typename Iterator> requires yulbax::concepts::isIterator<Iterator, Key, Value, Hash>
