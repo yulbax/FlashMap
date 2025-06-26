@@ -21,18 +21,23 @@ namespace yulbax {
         using Status   = container::flashmap::impl::Status;
         using Data     = container::flashmap::impl::Vectors<Key, Value, HashType>;
 
+        template<typename IteratorType, typename MapType>
+        class IteratorBase;
+
     public:
 
-        using key_type = Key;
-        using mapped_type = Value;
-        using value_type = std::pair<const Key, Value>;
-        class iterator;
-        class const_iterator;
+        using key_type       = Key;
+        using mapped_type    = Value;
+        using value_type     = std::pair<const Key, Value>;
+        using iterator       = IteratorBase<Value, flashmap>;
+        using const_iterator = IteratorBase<const Value, const flashmap>;
 
         explicit flashmap(std::size_t size = DEFAULT_SIZE);
 
         flashmap(const flashmap & other);
         flashmap & operator=(const flashmap & other);
+        flashmap(flashmap && other) noexcept;
+        flashmap & operator=(flashmap && other) noexcept;
 
         template<typename InputIt> requires concepts::inititerator<InputIt, Key, Value>
         flashmap(InputIt first, InputIt last);
@@ -65,7 +70,7 @@ namespace yulbax {
         [[nodiscard]] const_iterator begin() const;
 
         iterator & end();
-        [[nodiscard]] const_iterator & end() const;
+        [[nodiscard]] const const_iterator & end() const;
 
     private:
         void rehash();
@@ -76,13 +81,14 @@ namespace yulbax {
 
         std::size_t getNextPosition(const Key & key, HashType hash);
 
-        void loadFactor();
+        [[nodiscard]] std::size_t loadFactor() const;
 
         Data m_Data;
         Hash m_Hasher;
         std::size_t m_Count;
         std::size_t m_MaxLoad;
         mutable std::list<std::size_t> m_ActiveIterators;
+        std::shared_ptr<bool> status;
         iterator endIt;
         const_iterator cendIt;
     };
