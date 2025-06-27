@@ -1,9 +1,12 @@
 #pragma once
-#include <new>
+
 #include <list>
 #include <vector>
+#include <memory>
+#include <ranges>
 #include "flashmapconcepts.hpp"
 #include "flashmapimpl.hpp"
+#include "listallocator.hpp"
 
 namespace yulbax {
 
@@ -87,7 +90,8 @@ namespace yulbax {
         Hash m_Hasher;
         std::size_t m_Count;
         std::size_t m_MaxLoad;
-        mutable std::list<std::size_t> m_ActiveIterators;
+
+        mutable std::list<std::size_t, container::allocator::chunk_list_allocator<size_t>> m_ActiveIterators;
         std::shared_ptr<bool> status;
         iterator endIt;
         const_iterator cendIt;

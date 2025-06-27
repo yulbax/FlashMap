@@ -16,7 +16,7 @@ A high-performance, template-based hash map implementation using open addressing
 ## Requirements
 
 - C++20 compatible compiler
-- Standard library support for `<vector>` and `<list>`
+- Standard library support for `<vector>`, `<list>`, `<ranges>` and `<memory>`
 
 ## Usage
 
@@ -237,7 +237,7 @@ This container is **not thread-safe**. External synchronization is required for 
 ## Implementation Notes
 
 - Uses `std::vector` for underlying storage
-- Uses `std::list` for tracking active iterators
+- Uses `std::list` with custom allocator for tracking active iterators
 - Bitwise AND operation for fast modulo (size automatically scales to power-of-2)
 - Perfect forwarding for efficient key-value insertion
 - Automatic iterator lifecycle management
@@ -250,10 +250,11 @@ This container is **not thread-safe**. External synchronization is required for 
 
 ## Performance Comparison
 Benchmark results comparing FlashMap with std::unordered_map (100,000 iterations):
-| Container               | Avg Time (seconds) |
-|-------------------------|--------------------|
-| `FlashMap`              | **0.01**           |
-| `std::unordered_map`    | 0.021              |
-| `ratio (flash/std)`     | 0.47               |
+
+| Container            | Avg Time (seconds) |
+|----------------------|--------------------|
+| `FlashMap`           | **0.01**           |
+| `std::unordered_map` | 0.021              |
+| `ratio (flash/std)`  | **0.47**           |
 
 *Note: Stable iterator feature adds minimal overhead during normal operations and only affects performance during rehashing operations.*

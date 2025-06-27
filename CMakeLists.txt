@@ -10,4 +10,5 @@ add_executable(FlashMap main.cpp
         flashmap.tpp
         flashmapimpl.hpp
         flashmapiterator.hpp
-        flashmapconcepts.hpp)
+        flashmapconcepts.hpp
+        listallocator.hpp)
