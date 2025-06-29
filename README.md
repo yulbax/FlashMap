@@ -16,7 +16,7 @@ A high-performance, template-based hash map implementation using open addressing
 ## Requirements
 
 - C++20 compatible compiler
-- Standard library support for `<vector>`, `<list>`, `<ranges>` and `<memory>`
+- Standard library support for `<vector>`, `<list>`, `<ranges>` and `<variant>`
 
 ## Usage
 

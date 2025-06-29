@@ -2,12 +2,10 @@
 
 // PUBLIC METHODS
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
-flashmap<Key, Value, Hash>::flashmap(std::size_t size) : m_Data(std::bit_ceil(size)), m_Hasher(),
-                                                         m_Count(0), m_MaxLoad(loadFactor()),
-                                                         m_ActiveIterators(2, m_Data.size()),
-                                                         status(std::make_shared<bool>()),
-                                                         endIt(m_ActiveIterators.begin(), this, status),
-                                                         cendIt(++m_ActiveIterators.begin(), this, status) {}
+flashmap<Key, Value, Hash>::flashmap(const std::size_t size) : m_Data(std::bit_ceil(size)), m_Hasher(),
+                                                               m_Count(0), m_MaxLoad(loadFactor()),
+                                                               endIt(this, m_Data.size()),
+                                                               cendIt(this, m_Data.size()) {}
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 template<typename InputIt> requires yulbax::concepts::inititerator<InputIt, Key, Value>
@@ -19,23 +17,20 @@ flashmap<Key, Value, Hash>::flashmap(InputIt first, InputIt last) : flashmap() {
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 flashmap<Key, Value, Hash>::flashmap(const flashmap & other) : m_Data(other.m_Data), m_Hasher(other.m_Hasher),
                                                                m_Count(other.m_Count), m_MaxLoad(other.m_MaxLoad),
-                                                               m_ActiveIterators(2, m_Data.size()),
-                                                               status(std::make_shared<bool>()),
-                                                               endIt(m_ActiveIterators.begin(), this, status),
-                                                               cendIt(++m_ActiveIterators.begin(), this, status) {}
+                                                               endIt(this, m_Data.size()),
+                                                               cendIt(this, m_Data.size()) {}
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 flashmap<Key, Value, Hash> & flashmap<Key, Value, Hash>::operator=(const flashmap & other) {
     if (this == &other) return *this;
+    invalidateIterators();
     m_Data = other.m_Data;
     m_Hasher = other.m_Hasher;
     m_Count = other.m_Count;
     m_MaxLoad = other.m_MaxLoad;
-    m_ActiveIterators.clear();
-    m_ActiveIterators.assign(2, m_Data.size());
-    status = std::make_shared<bool>();
-    endIt = iterator(m_ActiveIterators.begin(), this, status);
-    cendIt = const_iterator(++m_ActiveIterators.begin(), this, status);
+    m_ActiveIterators.erase(std::next(m_ActiveIterators.begin(), 2), m_ActiveIterators.end());
+    endIt.m_Index = m_Data.size();
+    cendIt.m_Index = m_Data.size();
     return *this;
 }
 
@@ -46,30 +41,39 @@ flashmap<Key, Value, Hash>::flashmap(flashmap && other) noexcept
       m_Count(other.m_Count),
       m_MaxLoad(other.m_MaxLoad),
       m_ActiveIterators(std::move(other.m_ActiveIterators)),
-      status(std::move(other.status)),
       endIt(std::move(other.endIt)),
       cendIt(std::move(other.cendIt)) {
-    endIt.m_Map = this;
-    cendIt.m_Map = this;
+    updateIterators();
+    other.m_Data.resize(4);
     other.m_Count = 0;
-    other.m_MaxLoad = 0;
-    other.m_ActiveIterators.clear();
-    other.status.reset();
+    other.m_MaxLoad = 3;
+    other.endIt.m_Index = 4;
+    other.cendIt.m_Index = 4;
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 flashmap<Key, Value, Hash> & flashmap<Key, Value, Hash>::operator=(flashmap && other) noexcept {
     if (this == &other) return *this;
+    invalidateIterators();
     m_Data = std::move(other.m_Data);
     m_Hasher = std::move(other.m_Hasher);
     m_Count = other.m_Count;
     m_MaxLoad = other.m_MaxLoad;
     m_ActiveIterators = std::move(other.m_ActiveIterators);
-    status = std::move(other.status);
     endIt = std::move(other.endIt);
     cendIt = std::move(other.cendIt);
-    endIt.m_Map = this; cendIt.m_Map = this;
+    updateIterators();
+    other.m_Data.resize(4);
+    other.m_Count = 0;
+    other.m_MaxLoad = 3;
+    other.endIt.m_Index = 4;
+    other.cendIt.m_Index = 4;
     return *this;
+}
+
+template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
+flashmap<Key, Value, Hash>::~flashmap() {
+    invalidateIterators();
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
@@ -100,9 +104,8 @@ std::pair<typename flashmap<Key, Value, Hash>::iterator, bool> flashmap<Key, Val
     const HashType newhash = m_Hasher(key);
     std::size_t pos = getNextPosition(key, newhash);
     auto [kv, status, hash] = m_Data[pos];
-    m_ActiveIterators.emplace_front(pos);
 
-    if (status == Status::OCCUPIED) return {iterator(m_ActiveIterators.begin(), this), false};
+    if (status == Status::OCCUPIED) return {iterator(this, pos), false};
 
     ++m_Count;
     kv.first = std::forward<K>(key);
@@ -110,7 +113,7 @@ std::pair<typename flashmap<Key, Value, Hash>::iterator, bool> flashmap<Key, Val
     status = Status::OCCUPIED;
     hash = newhash;
 
-    return {iterator(m_ActiveIterators.begin(), this, status), true};
+    return {iterator(this, pos), true};
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
@@ -167,9 +170,10 @@ bool flashmap<Key, Value, Hash>::erase(const Key & key) {
 }
 
 template<typename Key, typename Value, typename Hash> requires concepts::hashable<Key, Hash>
-bool flashmap<Key, Value, Hash>::erase(iterator it)  {
-    std::size_t pos = *it.m_CurrentPosition;
+bool flashmap<Key, Value, Hash>::erase(iterator & it)  {
+    if (it.m_Map != this) return false;
 
+    std::size_t pos = it.m_Index;
     if (pos >= m_Data.size() || m_Data.statuses[pos] == Status::DELETED) return false;
     m_Data.statuses[pos] = Status::DELETED;
     --m_Count;
@@ -179,7 +183,9 @@ bool flashmap<Key, Value, Hash>::erase(iterator it)  {
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 void flashmap<Key, Value, Hash>::clear() {
     std::ranges::fill(m_Data.statuses, Status::FREE);
-    m_ActiveIterators.erase(m_ActiveIterators.begin(), std::prev(m_ActiveIterators.end(), 2));
+    invalidateIterators();
+    m_ActiveIterators.erase(std::next(m_ActiveIterators.begin(), 2), m_ActiveIterators.end());
+    endIt.m_Map = this; cendIt.m_Map = this;
     m_Count = 0;
 }
 
@@ -187,24 +193,18 @@ template<typename Key, typename Value, typename Hash> requires yulbax::concepts:
 typename flashmap<Key, Value, Hash>::iterator
 flashmap<Key, Value, Hash>::begin() {
     if (!m_Count) return end();
-
     auto pos = std::ranges::find(m_Data.statuses, Status::OCCUPIED);
     std::size_t index = pos - m_Data.statuses.begin();
-
-    m_ActiveIterators.emplace_front(index);
-    return iterator(m_ActiveIterators.begin(), this, status);
+    return iterator(this, index);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 typename flashmap<Key, Value, Hash>::const_iterator
 flashmap<Key, Value, Hash>::begin() const {
     if (!m_Count) return end();
-
     auto pos = std::ranges::find(m_Data.statuses, Status::OCCUPIED);
     std::size_t index = pos - m_Data.statuses.begin();
-
-    m_ActiveIterators.emplace_front(index);
-    return const_iterator(m_ActiveIterators.begin(), this, status);
+    return const_iterator(this, index);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
@@ -224,8 +224,7 @@ typename flashmap<Key, Value, Hash>::iterator
 flashmap<Key, Value, Hash>::find(const Key & key) {
     const std::size_t pos = findIndex(key);
     if (pos == m_Data.size()) return end();
-    m_ActiveIterators.emplace_front(pos);
-    return iterator(m_ActiveIterators.begin(), this, status);
+    return iterator(this, pos);
 }
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
@@ -233,8 +232,7 @@ typename flashmap<Key, Value, Hash>::const_iterator
 flashmap<Key, Value, Hash>::find(const Key & key) const {
     const std::size_t pos = findIndex(key);
     if (pos == m_Data.size()) return end();
-    m_ActiveIterators.emplace_front(pos);
-    return const_iterator(m_ActiveIterators.begin(), this, status);
+    return const_iterator(this, pos);
 }
 
 // PRIVATE METHODS
@@ -244,27 +242,33 @@ void flashmap<Key, Value, Hash>::rehash() {
     std::size_t newSize = oldData.size() * 2;
     m_Data.resize(newSize);
     m_MaxLoad *= 2;
-    auto last = --m_ActiveIterators.end();
-    *last = newSize; --last; *last = newSize;
+    auto iterStart = std::next(m_ActiveIterators.begin(), 2);
+    endIt.m_Index = newSize; cendIt.m_Index = newSize;
 
     if (m_ActiveIterators.size() > 2) {
         flashmap<std::size_t, std::size_t> updatedPositions(m_ActiveIterators.size());
 
-        for (auto & pos : std::ranges::subrange(m_ActiveIterators.begin(), last)) {
-            if (updatedPositions.contains(pos)) {
-                pos = updatedPositions.at(pos);
-                continue;
-            }
+        for (auto & ptr : std::ranges::subrange(iterStart, m_ActiveIterators.end())) {
+            std::visit([&](auto * it) {
+                if (updatedPositions.contains(it->m_Index)) {
+                    it->m_Index = updatedPositions.at(it->m_Index);
+                    return;
+                }
 
-            auto [oldKV, oldStatus, oldHash] = oldData[pos];
-            std::size_t newPos = getNextPosition(oldKV.first, oldHash);
-            auto [newKV, newStatus, newHash] = m_Data[newPos];
-            newKV = std::move(oldKV);
-            newStatus = Status::OCCUPIED;
-            newHash = oldHash;
-            oldStatus = Status::DELETED;
-            updatedPositions[pos] = newPos;
-            pos = newPos;
+                auto [oldKV, oldStatus, oldHash] = oldData[it->m_Index];
+                if (oldStatus != Status::OCCUPIED) return;
+
+                std::size_t newPos = getNextPosition(oldKV.first, oldHash);
+                auto [newKV, newStatus, newHash] = m_Data[newPos];
+
+                newKV = std::move(oldKV);
+                newStatus = Status::OCCUPIED;
+                newHash = oldHash;
+                oldStatus = Status::DELETED;
+
+                updatedPositions[it->m_Index] = newPos;
+                it->m_Index = newPos;
+            }, ptr);
         }
     }
 
@@ -333,4 +337,34 @@ std::size_t flashmap<Key, Value, Hash>::getNextPosition(const Key & key, const H
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 std::size_t flashmap<Key, Value, Hash>::loadFactor() const {
     return m_Data.size() * LOAD_FACTOR;
+}
+
+template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
+template<typename T>
+void flashmap<Key, Value, Hash>::registerIterator(T * it) const {
+    it->m_IteratorNode = m_ActiveIterators.insert(m_ActiveIterators.end(), it);
+}
+
+template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
+template<typename T>
+void flashmap<Key, Value, Hash>::unregisterIterator(T * it) const {
+    if (it->m_IteratorNode != m_ActiveIterators.end()) {
+        m_ActiveIterators.erase(it->m_IteratorNode);
+        it->m_IteratorNode = m_ActiveIterators.end();
+        it->m_Map = nullptr;
+    }
+}
+
+template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
+void flashmap<Key, Value, Hash>::invalidateIterators(flashmap * map) {
+    for (auto & ptr : m_ActiveIterators) {
+        std::visit([&](auto * it) {
+            it->m_Map = map;
+        }, ptr);
+    }
+}
+
+template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
+void flashmap<Key, Value, Hash>::updateIterators() {
+    invalidateIterators(this);
 }

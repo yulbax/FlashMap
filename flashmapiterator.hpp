@@ -8,8 +8,8 @@ namespace concepts {
 
 template<typename Key, typename Value, typename Hash> requires yulbax::concepts::hashable<Key, Hash>
 template<typename ValueType, typename MapType>
-class flashmap<Key, Value, Hash>::IteratorBase {
-    using ListIterator = std::list<std::size_t>::iterator;
+class flashmap<Key, Value, Hash>::Iterator {
+    using ListPos = typename std::list<IteratorPtr>::iterator;
 public:
     using iterator_category = std::forward_iterator_tag;
     using value_type = std::pair<const Key, ValueType>;
@@ -17,70 +17,76 @@ public:
     using pointer = value_type*;
     using reference = value_type&;
 
-    IteratorBase() : m_Map(nullptr) {}
+    Iterator() : m_Map(nullptr), m_Index() {}
 
-    IteratorBase(const ListIterator pos, MapType * map, const std::shared_ptr<bool> & status) : m_Map(map), m_CurrentPosition(pos), m_MapStatus(status) {}
-
-    IteratorBase(const IteratorBase & other) {
-        if (other.m_Map == nullptr) return;
-        m_Map = other.m_Map;
-        m_Map->m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
-        m_CurrentPosition = m_Map->m_ActiveIterators.begin();
-        m_MapStatus = other.m_MapStatus;
+    Iterator(MapType * map, const std::size_t index) : m_Map(map), m_Index(index) {
+        if (m_Map) m_Map->registerIterator(this);
     }
 
-    IteratorBase & operator=(const IteratorBase & other) {
-        if (this == &other) return *this;
-        if (!m_MapStatus.expired()) m_Map->m_ActiveIterators.erase(m_CurrentPosition);
+    Iterator(const Iterator & other) : m_Index(other.m_Index) {
         m_Map = other.m_Map;
-        if (!other.m_MapStatus.expired()) {
-            m_Map->m_ActiveIterators.emplace_front(*other.m_CurrentPosition);
-            m_CurrentPosition = m_Map->m_ActiveIterators.begin();
-        }
-        m_MapStatus = other.m_MapStatus;
+        if (m_Map) m_Map->registerIterator(this);
+    }
+
+    Iterator & operator=(const Iterator & other) {
+        if (this == &other) return *this;
+
+        if (m_Map) m_Map->unregisterIterator(this);
+        m_Map = other.m_Map;
+        m_Index = other.m_Index;
+        if (m_Map) m_Map->registerIterator(this);
 
         return *this;
     }
 
-    IteratorBase(IteratorBase && other) noexcept
-    : m_Map(other.m_Map), m_CurrentPosition(other.m_CurrentPosition), m_MapStatus(other.m_MapStatus) {
-        other.m_MapStatus.reset();
+    Iterator(Iterator && other) noexcept : m_Index(other.m_Index) {
+        m_Map = other.m_Map;
+        m_IteratorNode = other.m_IteratorNode;
+        other.m_Map = nullptr;
+        other.m_IteratorNode = {};
+        if (m_Map) *m_IteratorNode = this;
     }
 
-    IteratorBase & operator=(IteratorBase && other) noexcept {
+    Iterator& operator=(Iterator && other) noexcept {
         if (this == &other) return *this;
+
+        if (m_Map) m_Map->unregisterIterator(this);
         m_Map = other.m_Map;
-        m_CurrentPosition = other.m_CurrentPosition;
-        m_MapStatus = other.m_MapStatus;
-        other.m_MapStatus.reset();
+        m_Index = other.m_Index;
+        m_IteratorNode = other.m_IteratorNode;
+        if (m_Map) *m_IteratorNode = this;
+
+        other.m_Map = nullptr;
+        other.m_IteratorNode = {};
+
         return *this;
     }
 
-    ~IteratorBase() {
-        if (!m_MapStatus.expired()) {
-            m_Map->m_ActiveIterators.erase(m_CurrentPosition);
-        }
+    ~Iterator() {
+        if (m_Map) m_Map->unregisterIterator(this);
     }
 
-    IteratorBase & operator++() {
+    Iterator & operator++() {
         skipToOccupied();
         return *this;
     }
 
     auto & operator*() const {
         isAlive();
-        return *std::launder(reinterpret_cast<std::pair<const Key, Value>*>(&m_Map->m_Data.KVs[*m_CurrentPosition]));
+        return *std::launder(reinterpret_cast<std::pair<const Key, Value>*>(&m_Map->m_Data.KVs[m_Index]));
     }
 
     auto operator->() const {
         isAlive();
-        return std::launder(reinterpret_cast<std::pair<const Key, Value>*>(&m_Map->m_Data.KVs[*m_CurrentPosition]));
+        return std::launder(reinterpret_cast<std::pair<const Key, Value>*>(&m_Map->m_Data.KVs[m_Index]));
     }
 
     template<typename Iterator> requires concepts::isIterator<Iterator, Key, Value, Hash>
     bool operator==(const Iterator & other) const {
-        if (*m_CurrentPosition != m_Map->m_Data.size()) isAlive();
-        return *m_CurrentPosition == *other.m_CurrentPosition;
+        if (m_Map != other.m_Map || !m_Map) return false;
+        if (other.m_Index != other.m_Map->m_Data.size()) other.isAlive();
+        if (m_Index != m_Map->m_Data.size()) isAlive();
+        return m_Index == other.m_Index;
     }
 
     template<typename Iterator> requires concepts::isIterator<Iterator, Key, Value, Hash>
@@ -90,23 +96,27 @@ public:
 
 private:
     void isAlive() const {
-        if (m_Map->m_Data.statuses[*m_CurrentPosition] == Status::DELETED) {
+        if (!m_Map) {
+            throw std::runtime_error("Iterator invalidated: container was destroyed");
+        }
+
+        if (m_Map->m_Data.statuses[m_Index] == Status::DELETED) {
             throw std::out_of_range("Attempted to access a deleted value");
         }
     }
 
     void skipToOccupied() {
         do {
-            ++(*m_CurrentPosition);
-        } while (*m_CurrentPosition != m_Map->m_Data.size()
-              && m_Map->m_Data.statuses[*m_CurrentPosition] != Status::OCCUPIED);
+            ++m_Index;
+        } while (m_Index != m_Map->m_Data.size()
+              && m_Map->m_Data.statuses[m_Index] != Status::OCCUPIED);
     }
 
     MapType * m_Map;
-    ListIterator m_CurrentPosition;
-    std::weak_ptr<bool> m_MapStatus;
+    std::size_t m_Index;
+    ListPos m_IteratorNode;
 
     friend class flashmap;
-    friend class IteratorBase<Value, flashmap>;
-    friend class IteratorBase<const Value, const flashmap>;
+    friend class Iterator<Value, flashmap>;
+    friend class Iterator<const Value, const flashmap>;
 };
